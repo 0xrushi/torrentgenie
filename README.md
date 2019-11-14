@@ -1,4 +1,7 @@
-# torrentgenie
+# torrentgenie v1.1
+a. Added support for seprate token config file
+b. Added support for tor proxy
+
 A minimalistic, simple torrent proxy and magnet fetcher via a telegram bot as an interface.
 
 

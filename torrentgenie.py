@@ -1,5 +1,4 @@
 import os, sys
-import urllib.request as urllib2
 from bs4 import BeautifulSoup
 import re
 import pprint
@@ -12,8 +11,14 @@ from telegram.ext.dispatcher import run_async
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
 						  ConversationHandler)
-
 import logging
+
+import configparser
+import requests
+session = requests.session()
+# Tor uses the 9050 port as the default socks port
+session.proxies = {'http':  'socks5://127.0.0.1:9050',
+                   'https': 'socks5://127.0.0.1:9050'}
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 					level=logging.INFO)
@@ -24,9 +29,8 @@ def get_mirrors(bot, update):
 	proxy_list_url = 'https://thepiratebay-proxylist.org/'
 	try:
 		print ('Connecting to proxy list...')
-		req = urllib2.Request(proxy_list_url, headers={'User-Agent' : "Magic Browser"})
-		con = urllib2.urlopen( req ).read()
-		soup = BeautifulSoup(con, 'html.parser')
+		req = session.get(proxy_list_url, headers={'User-Agent' : "Magic Browser"}).text
+		soup = BeautifulSoup(req, 'html.parser')
 		plist=[]
 		#productDivs = soup.findAll('td', attrs={'title' : 'URL'})
 		#for div in productDivs:
@@ -46,12 +50,10 @@ def try_connections(proxy_list_urls,bot, update,user_data):
 	for url in proxy_list_urls:
 		try:
 			print('Trying to connect to '+ url)
-			req = urllib2.Request(url, headers={'User-Agent' : "Magic Browser"})
-			con = urllib2.urlopen(req)
+			req = session.get(url, headers={'User-Agent' : "Magic Browser"}).text
 			print('Connected succssfuly to '+ url)
 			update.message.reply_text('Connected succssfuly to '+ url)
 			update.message.reply_text('Enter your search query :')
-			#create_query(url,bot,update)
 			global glob_url
 			glob_url=url
 			user_data['mykey1']=url
@@ -68,10 +70,9 @@ def create_query(ur,user_input):
 
 
 def fetchLinkAndTitle():
-	req = urllib2.Request(url, headers={'User-Agent' : "Magic Browser"})
-	con = urllib2.urlopen(req).read()
+	req = session.get(url, headers={'User-Agent' : "Magic Browser"}).text
 	global soup
-	soup = BeautifulSoup(con, 'html.parser')
+	soup = BeautifulSoup(req, 'html.parser')
 	productDivs = soup.findAll('div', attrs={'class' : 'detName'})
 	i=0
 	sds=[]
@@ -130,9 +131,8 @@ def fetchSeeders():
 def fetchMagnet(url):
 	#print(url)
 	magn=[]
-	req = urllib2.Request(url, headers={'User-Agent' : "Magic Browser"})
-	con = urllib2.urlopen(req).read()
-	soup = BeautifulSoup(con, 'html.parser')
+	req = session.get(url, headers={'User-Agent' : "Magic Browser"}).text
+	soup = BeautifulSoup(req, 'html.parser')
 	productDivs = soup.findAll('div', attrs={'class' : 'download'})
 	for div in productDivs:
 		tmp=div.find('a')['href']
@@ -193,9 +193,14 @@ def cancel(bot, update,user_data):
 
 	return ConversationHandler.END
 
+
 def main():
-	TOKEN = ''
-	updater = Updater(TOKEN)
+	configParser = configparser.RawConfigParser()   
+	configParser.readfp(open(r'config.txt'))
+	TOKEN = configParser.get('TOKEN', 'tok')
+	REQUEST_KWARGS=    {'proxy_url': 'socks5://localhost:9050/'}
+
+	updater = Updater(TOKEN,  request_kwargs=REQUEST_KWARGS)
 
 	dp = updater.dispatcher
 	
