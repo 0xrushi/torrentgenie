@@ -58,7 +58,7 @@ def try_connections(proxy_list_urls,bot, update,user_data):
 			glob_url=url
 			user_data['mykey1']=url
 			break
-		except(urllib2.HTTPError):
+		except Exception as e:
 			print ('Could not connect to proxy list')
 
 
@@ -145,6 +145,8 @@ def start(bot, update,user_data):
 	update.message.reply_text("Loading Searching for valid pirateproxy ..you will get a confirmation once searching is completed ")
 	plist=get_mirrors(bot,update)
 	print(plist)
+	while not plist:
+		plist=get_mirrors(bot,update)
 	try_connections(plist,bot,update,user_data)
 	return 1
 #@run_async
