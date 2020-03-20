@@ -1,4 +1,4 @@
-# torrentgenie v1.1
+# torrentgenie v1.4
 a. Added support for seprate token config file
 b. Added support for tor proxy
 
