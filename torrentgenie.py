@@ -83,9 +83,9 @@ class TorrentGenie:
                 print ('Could not connect to proxy list')
 
 
-    def create_query(self, ur,user_input):
+    def create_query(self, ur,user_input, i):
         q = user_input.replace(" ", "+")
-        url = ur + "/s/?q="+q+"&page=0&orderby=99"
+        url = ur + "/s/?q="+q+"&page="+str(i)+"&orderby=99"
         print (url)    
         return url
 
@@ -172,12 +172,12 @@ class TorrentGenie:
         self.try_connections(plist,bot,update,user_data)
         return GET_TEXT
     #@run_async
-    def get_text(self,bot, update,user_data):
+    def get_text(self,bot, update,user_data, i=0):
         user = update.message.from_user
         print("in here")
         user_text=update.message.text
         print (user_data['mykey1'])
-        self.url=self.create_query(self.glob_url,update.message.text)
+        self.url=self.create_query(self.glob_url,update.message.text, i)
         #return SEARCH
         self.search_query(bot,update,user_data)
 
@@ -200,17 +200,19 @@ class TorrentGenie:
                 keyboard = [[InlineKeyboardButton("Get Link", callback_data=str(i))]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 #button = InlineKeyboardButton("Get Link", )
-                update.message.reply_text("id:"+str(i)+"\ntitle:"+title[i]+"\nuploader:"+u[i]+"\nseeds and leech:"+str(sl[i])+"\n--------------------", reply_markup=reply_markup)
+                #update.message.reply_text("id:"+str(i)+"\ntitle:"+title[i]+"\nuploader:"+u[i]+"\nseeds and leech:"+str(sl[i])+"\n--------------------", reply_markup=reply_markup)
+                bot.send_message(chat_id=update.effective_chat.id, text= "id:"+str(i)+"\ntitle:"+title[i]+"\nuploader:"+u[i]+"\nseeds and leech:"+str(sl[i])+"\n--------------------", reply_markup=reply_markup)
                 
-            update.message.reply_text("Loading complete, click on Get link of your choice:")
-
+            #update.message.reply_text("Loading complete, click on Get link of your choice:")
+            bot.send_message(chat_id=update.effective_chat.id, text= "Loading complete, click on Get link of your choice:")
+                             
             button_list = [
             InlineKeyboardButton("Previous page", callback_data="pre"),
-            InlineKeyboardButton("Next Page", callback_data="next"),
-            InlineKeyboardButton("row 2", callback_data="now")]
+            InlineKeyboardButton("Next Page", callback_data="next")]
+            #InlineKeyboardButton("row 2", callback_data="now")]
 
             reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=2))
-            bot.send_message(chat_id=update.effective_chat.id, text="asas", reply_markup=reply_markup)
+            bot.send_message(chat_id=update.effective_chat.id, text=".", reply_markup=reply_markup)
 
         return GET_TEXT2
 
@@ -222,12 +224,22 @@ class TorrentGenie:
     def get_text2(self,bot, update, user_data):
         query = update.callback_query
         print("get_text2 "+query.data)
+        
         if query.data=="next":
             ind=self.url.index("&page=")
             ind=ind+6
             turl = list(self.url)
             turl[ind]=str(int(turl[ind])+1)
             self.url=''.join(turl)
+            self.search_query(bot,update,user_data)
+            return SEARCH
+        elif query.data=="pre":
+            ind=self.url.index("&page=")
+            ind=ind+6
+            turl = list(self.url)
+            turl[ind]=str(int(turl[ind])-1)
+            self.url=''.join(turl)
+            self.search_query(bot,update,user_data)
             return SEARCH
         #print("damm "+query.data)
         if(user_data['notfoundflag']==0):
