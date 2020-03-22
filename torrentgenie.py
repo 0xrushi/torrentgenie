@@ -284,7 +284,8 @@ class TorrentGenie:
             },
             fallbacks=[CommandHandler('cancel', self.cancel,pass_user_data=True)]
         )
-
+        
+        dp.add_handler(CommandHandler('cancel', self.cancel,pass_user_data=True))
         dp.add_handler(conv_handler)
         dp.add_handler(CallbackQueryHandler(self.get_text2,pass_user_data=True))
 
