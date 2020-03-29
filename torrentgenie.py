@@ -46,8 +46,8 @@ class TorrentGenie:
         self.glob_url=""
         self.session = requests.session()
         # Tor uses the 9050 port as the default socks port
-        self.session.proxies = {'http': 'socks5://127.0.0.1:9050','https': 'socks5://127.0.0.1:9050'}
-    def get_mirrors(self, bot, update,proxy_list_url = 'https://thepiratebay-proxylist.org/' ):
+        #self.session.proxies = {'http': 'socks5://127.0.0.1:9050','https': 'socks5://127.0.0.1:9050'}
+    def get_mirrors(self ,proxy_list_url = 'https://thepiratebay-proxylist.org/' ):
         try:
             print ('Connecting to proxy list...')
             req = (self.session).get(proxy_list_url, headers={'User-Agent' : "Magic Browser"}).text
@@ -92,13 +92,11 @@ class TorrentGenie:
 
     def fetchLinkAndTitle(self, urlx):
         req = self.session.get(urlx, headers={'User-Agent' : "Magic Browser"}).text
-        global soup
         #print("request in fetchLinkAndTitle is "+req)
         #print("url in fetchLinkAndTitle is "+urlx)
         self.soup = BeautifulSoup(req, 'html.parser')
         productDivs = self.soup.findAll('div', attrs={'class' : 'detName'})
         i=0
-        sds=[]
         title=[]
         hrefs=[]
         if(len(productDivs)==0):
@@ -108,7 +106,7 @@ class TorrentGenie:
             hrefs.append(self.glob_url+(div.find('a')['href']))
             i=i+1
         print (i)
-        return title,hrefs
+        return title, hrefs
 
     def createdict(self, title,sl,uploaded,link):
         dic={}
@@ -124,23 +122,23 @@ class TorrentGenie:
             mlist.append(dic)
         return mlist
 
-    def myprint(self, i):
-        print (title[i])
-        print (u[i])
-        print (sl[i])
-        print (link[i])
+#    def myprint(self, i):
+#        print (title[i])
+#        print (u[i])
+#        print (sl[i])
+#        print (link[i])
 
-    def fetchUploader(self):
+    def fetchUploader(self, soup):
         uploader=[]
-        productDivs = self.soup.findAll('font', attrs={'class' : 'detDesc'})
+        productDivs = soup.findAll('font', attrs={'class' : 'detDesc'})
         for div in productDivs:
             uploader.append(div.text)
         print ("done")
         return uploader
 
-    def fetchSeeders(self):
+    def fetchSeeders(self, soup):
         seederNleecher=[]
-        productDivs = self.soup.findAll('tr')
+        productDivs = soup.findAll('tr')
         for div in productDivs:
             tmp = str(div.findAll('td',attrs={'align' : 'right'}))
             f=[int(x) for x in re.findall("\d+",tmp)]
@@ -153,33 +151,34 @@ class TorrentGenie:
 
     def fetchMagnet(self, url):
         #print(url)
-        magn=[]
         #print("url in fetchmagnet is "+ url)
         req = self.session.get(url, headers={'User-Agent' : "Magic Browser"}).text
         soup = BeautifulSoup(req, 'html.parser')
         productDivs = soup.findAll('div', attrs={'class' : 'download'})
         for div in productDivs:
             tmp=div.find('a')['href']
-        return (tmp)
+        return tmp
 
-#@run_async
+    @run_async
     def start(self, bot, update,user_data):
+        self.__init__()
         update.message.reply_text("Loading Searching for valid pirateproxy ..you will get a confirmation once searching is completed ")
-        plist=self.get_mirrors(bot,update)
+        plist=self.get_mirrors()
         print(plist)
         while not plist:
-            plist=self.get_mirrors(bot,update)
+            plist=self.get_mirrors()
         self.try_connections(plist,bot,update,user_data)
         return GET_TEXT
-    #@run_async
-    def get_text(self,bot, update,user_data, i=0):
+    @run_async
+    def get_text(self,bot, update,user_data, i=0): #enter something to search
         user = update.message.from_user
         print("in here")
-        user_text=update.message.text
+#        user_text=update.message.texts
         print (user_data['mykey1'])
         self.url=self.create_query(self.glob_url,update.message.text, i)
-        #return SEARCH
-        self.search_query(bot,update,user_data)
+        
+        tmp= self.search_query(bot,update,user_data)
+        return GET_TEXT2
 
     def search_query(self,bot,update,user_data):
         bot.send_message(chat_id=update.effective_chat.id, text="Searching your query")
@@ -188,13 +187,13 @@ class TorrentGenie:
         user_data['notfoundflag']=0
         
         if(title[0]=="NOT FOUND" or link[0]=="NOT FOUND"):
-            update.message.reply_text("item not found :(")
+            update.message.reply_text("item not found :( type /cancel to exit.")
             user_data['notfoundflag']=1
             print("notfound")
             return GET_TEXT2
         else:  
-            u=self.fetchUploader()
-            sl=self.fetchSeeders()
+            u=self.fetchUploader(self.soup)
+            sl=self.fetchSeeders(self.soup)
             user_data['links']=link
             for i in range(len(title)):
                 keyboard = [[InlineKeyboardButton("Get Link", callback_data=str(i))]]
@@ -214,7 +213,7 @@ class TorrentGenie:
             reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=2))
             bot.send_message(chat_id=update.effective_chat.id, text=".", reply_markup=reply_markup)
 
-        return GET_TEXT2
+        return "tmp"
 
     
     def button(self, bot,  update):
@@ -231,16 +230,16 @@ class TorrentGenie:
             turl = list(self.url)
             turl[ind]=str(int(turl[ind])+1)
             self.url=''.join(turl)
-            self.search_query(bot,update,user_data)
-            return SEARCH
+            tmp= self.search_query(bot,update,user_data)
+            return GET_TEXT2
         elif query.data=="pre":
             ind=self.url.index("&page=")
             ind=ind+6
             turl = list(self.url)
             turl[ind]=str(int(turl[ind])-1)
             self.url=''.join(turl)
-            self.search_query(bot,update,user_data)
-            return SEARCH
+            tmp= self.search_query(bot,update,user_data)
+            return GET_TEXT2
         #print("damm "+query.data)
         if(user_data['notfoundflag']==0):
             bot.send_message(chat_id=update.effective_chat.id, text="processing your request please wait a while")
@@ -252,11 +251,13 @@ class TorrentGenie:
             bot.send_message(chat_id=update.effective_chat.id, text=st)
             bot.send_message(chat_id=update.effective_chat.id, text= 'You may click any other get magnet button or type /cancel to END and /start to start again  :) ')
             #update.message.reply_text('',reply_markup=ReplyKeyboardRemove())
-        return ConversationHandler.END
+        
+        return GET_TEXT2
 
 
-    ##@run_async
+    @run_async
     def cancel(self,bot, update,user_data):
+        self.__init__()
         user = update.message.from_user
         update.message.reply_text('Cancellation Successful .\n type /start to search again :) ',
                                   reply_markup=ReplyKeyboardRemove())
@@ -279,15 +280,16 @@ class TorrentGenie:
 
             states={
                 GET_TEXT: [MessageHandler(Filters.text, self.get_text,pass_user_data=True),CommandHandler('cancel', self.cancel,pass_user_data=True)],
-                SEARCH:[CallbackQueryHandler(self.search_query,pass_user_data=True),CommandHandler('cancel', self.cancel,pass_user_data=True)],
                 GET_TEXT2: [CallbackQueryHandler(self.get_text2,pass_user_data=True),CommandHandler('cancel', self.cancel,pass_user_data=True)]
             },
             fallbacks=[CommandHandler('cancel', self.cancel,pass_user_data=True)]
         )
         
-        dp.add_handler(CommandHandler('cancel', self.cancel,pass_user_data=True))
         dp.add_handler(conv_handler)
-        dp.add_handler(CallbackQueryHandler(self.get_text2,pass_user_data=True))
+        dp.add_handler(CommandHandler('cancel', self.cancel, pass_user_data=True))
+        #dp.add_handler(CommandHandler('cancel', self.cancel))
+        #dp.add_handler(CallbackQueryHandler(self.get_text2,pass_user_data=True))
+
 
         updater.start_polling()
 
